@@ -328,7 +328,6 @@ class AndroidInAppWebViewWidget extends PlatformInAppWebViewWidget {
 
     return _TickerModeAwarePlatformView(
       key: params.key,
-      useHybridComposition: useHybridComposition,
       builder:
           (context, onControllerCreated) => PlatformViewLink(
             viewType: 'com.pichillilorenzo/flutter_inappwebview',
@@ -513,18 +512,16 @@ class AndroidInAppWebViewWidget extends PlatformInAppWebViewWidget {
 
 /// Forwards [TickerMode] to the native WebView.
 ///
-/// Without hybrid composition, the native WebView keeps drawing into its
-/// Flutter texture even when Flutter no longer paints it (e.g. a covered route),
-/// and that texture can be released under memory pressure while the WebView is
-/// still drawing into it.
+/// The native WebView keeps running and drawing even when Flutter no longer
+/// paints it (e.g. a covered route). Without hybrid composition, it draws into
+/// a Flutter texture that can be released under memory pressure while the
+/// WebView is still drawing into it.
 class _TickerModeAwarePlatformView extends StatefulWidget {
   const _TickerModeAwarePlatformView({
     super.key,
-    required this.useHybridComposition,
     required this.builder,
   });
 
-  final bool useHybridComposition;
   final Widget Function(
     BuildContext context,
     ValueChanged<AndroidInAppWebViewController> onControllerCreated,
@@ -561,9 +558,6 @@ class _TickerModeAwarePlatformViewState
   }
 
   void _sync() {
-    if (widget.useHybridComposition) {
-      return;
-    }
     _controller?.setTickerModeEnabled(_tickerModeEnabled);
   }
 

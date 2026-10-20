@@ -2028,12 +2028,12 @@ final public class InAppWebView extends InputAwareWebView implements InAppWebVie
   }
 
   /**
-   * Mirrors Flutter's TickerMode. Without hybrid composition the WebView draws into a
-   * Flutter-owned texture that keeps being fed even when Flutter no longer shows it, and
-   * that texture can be released under memory pressure while the WebView is still drawing.
+   * Mirrors Flutter's TickerMode, as the WebView otherwise keeps running and drawing when
+   * Flutter no longer shows it. Without hybrid composition it draws into a Flutter-owned
+   * texture that can be released under memory pressure while the WebView is still drawing.
    */
   public void setTickerModeEnabled(boolean enabled) {
-    if (customSettings.useHybridComposition || isTickerModeEnabled == enabled) {
+    if (isTickerModeEnabled == enabled) {
       return;
     }
     isTickerModeEnabled = enabled;

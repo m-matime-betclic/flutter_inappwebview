@@ -3002,7 +3002,7 @@ class AndroidInAppWebViewController extends PlatformInAppWebViewController
   }
 
   ///Mirrors Flutter's [TickerMode] on the native WebView: when disabled, the WebView is paused
-  ///and hidden. No-op when `useHybridComposition` is `true`.
+  ///and hidden.
   ///
   ///Used internally by `AndroidInAppWebViewWidget`.
   Future<void> setTickerModeEnabled(bool enabled) async {
