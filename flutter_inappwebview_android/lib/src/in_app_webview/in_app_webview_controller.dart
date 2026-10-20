@@ -3001,6 +3001,16 @@ class AndroidInAppWebViewController extends PlatformInAppWebViewController
     await channel?.invokeMethod('resume', args);
   }
 
+  ///Mirrors Flutter's [TickerMode] on the native WebView: when disabled, the WebView is paused
+  ///and hidden. No-op when `useHybridComposition` is `true`.
+  ///
+  ///Used internally by `AndroidInAppWebViewWidget`.
+  Future<void> setTickerModeEnabled(bool enabled) async {
+    Map<String, dynamic> args = <String, dynamic>{};
+    args.putIfAbsent("enabled", () => enabled);
+    await channel?.invokeMethod('setTickerModeEnabled', args);
+  }
+
   @override
   Future<bool> pageDown({required bool bottom}) async {
     Map<String, dynamic> args = <String, dynamic>{};

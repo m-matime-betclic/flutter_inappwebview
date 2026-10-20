@@ -275,8 +275,8 @@ class AndroidInAppWebViewWidget extends PlatformInAppWebViewWidget {
         params is AndroidInAppWebViewWidgetCreationParams
             ? params
             : AndroidInAppWebViewWidgetCreationParams.fromPlatformInAppWebViewWidgetCreationParams(
-                params,
-              ),
+              params,
+            ),
       );
 
   AndroidInAppWebViewWidgetCreationParams get _androidParams =>
@@ -326,52 +326,61 @@ class AndroidInAppWebViewWidget extends PlatformInAppWebViewWidget {
             : params.initialOptions?.android.useHybridComposition) ??
         true;
 
-    return PlatformViewLink(
+    return _TickerModeAwarePlatformView(
       key: params.key,
-      viewType: 'com.pichillilorenzo/flutter_inappwebview',
-      surfaceFactory:
-          (BuildContext context, PlatformViewController controller) {
-            return AndroidViewSurface(
-              controller: controller as AndroidViewController,
-              gestureRecognizers:
-                  params.gestureRecognizers ??
-                  const <Factory<OneSequenceGestureRecognizer>>{},
-              hitTestBehavior: PlatformViewHitTestBehavior.opaque,
-            );
-          },
-      onCreatePlatformView: (PlatformViewCreationParams params) {
-        return _createAndroidViewController(
-            hybridComposition: useHybridComposition,
-            id: params.id,
+      useHybridComposition: useHybridComposition,
+      builder:
+          (context, onControllerCreated) => PlatformViewLink(
             viewType: 'com.pichillilorenzo/flutter_inappwebview',
-            layoutDirection:
-                this.params.layoutDirection ??
-                Directionality.maybeOf(context) ??
-                TextDirection.rtl,
-            creationParams: <String, dynamic>{
-              'initialUrlRequest': this.params.initialUrlRequest?.toMap(),
-              'initialFile': this.params.initialFile,
-              'initialData': this.params.initialData?.toMap(),
-              'initialSettings': settingsMap,
-              'contextMenu': this.params.contextMenu?.toMap() ?? {},
-              'windowId': this.params.windowId,
-              'headlessWebViewId':
-                  this.params.headlessWebView?.isRunning() ?? false
-                  ? this.params.headlessWebView?.id
-                  : null,
-              'initialUserScripts':
-                  this.params.initialUserScripts
-                      ?.map((e) => e.toMap())
-                      .toList() ??
-                  [],
-              'pullToRefreshSettings': pullToRefreshSettings,
-              'keepAliveId': this.params.keepAlive?.id,
+            surfaceFactory: (
+              BuildContext context,
+              PlatformViewController controller,
+            ) {
+              return AndroidViewSurface(
+                controller: controller as AndroidViewController,
+                gestureRecognizers:
+                    params.gestureRecognizers ??
+                    const <Factory<OneSequenceGestureRecognizer>>{},
+                hitTestBehavior: PlatformViewHitTestBehavior.opaque,
+              );
             },
-          )
-          ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
-          ..addOnPlatformViewCreatedListener((id) => _onPlatformViewCreated(id))
-          ..create();
-      },
+            onCreatePlatformView: (PlatformViewCreationParams params) {
+              return _createAndroidViewController(
+                  hybridComposition: useHybridComposition,
+                  id: params.id,
+                  viewType: 'com.pichillilorenzo/flutter_inappwebview',
+                  layoutDirection:
+                      this.params.layoutDirection ??
+                      Directionality.maybeOf(context) ??
+                      TextDirection.rtl,
+                  creationParams: <String, dynamic>{
+                    'initialUrlRequest': this.params.initialUrlRequest?.toMap(),
+                    'initialFile': this.params.initialFile,
+                    'initialData': this.params.initialData?.toMap(),
+                    'initialSettings': settingsMap,
+                    'contextMenu': this.params.contextMenu?.toMap() ?? {},
+                    'windowId': this.params.windowId,
+                    'headlessWebViewId':
+                        this.params.headlessWebView?.isRunning() ?? false
+                            ? this.params.headlessWebView?.id
+                            : null,
+                    'initialUserScripts':
+                        this.params.initialUserScripts
+                            ?.map((e) => e.toMap())
+                            .toList() ??
+                        [],
+                    'pullToRefreshSettings': pullToRefreshSettings,
+                    'keepAliveId': this.params.keepAlive?.id,
+                  },
+                )
+                ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
+                ..addOnPlatformViewCreatedListener((id) {
+                  _onPlatformViewCreated(id);
+                  onControllerCreated(_controller!);
+                })
+                ..create();
+            },
+          ),
     );
   }
 
@@ -500,4 +509,71 @@ class AndroidInAppWebViewWidget extends PlatformInAppWebViewWidget {
     // unused
     throw UnimplementedError();
   }
+}
+
+/// Forwards [TickerMode] to the native WebView.
+///
+/// Without hybrid composition, the native WebView keeps drawing into its
+/// Flutter texture even when Flutter no longer paints it (e.g. a covered route),
+/// and that texture can be released under memory pressure while the WebView is
+/// still drawing into it.
+class _TickerModeAwarePlatformView extends StatefulWidget {
+  const _TickerModeAwarePlatformView({
+    super.key,
+    required this.useHybridComposition,
+    required this.builder,
+  });
+
+  final bool useHybridComposition;
+  final Widget Function(
+    BuildContext context,
+    ValueChanged<AndroidInAppWebViewController> onControllerCreated,
+  )
+  builder;
+
+  @override
+  State<_TickerModeAwarePlatformView> createState() =>
+      _TickerModeAwarePlatformViewState();
+}
+
+class _TickerModeAwarePlatformViewState
+    extends State<_TickerModeAwarePlatformView> {
+  // Kept here rather than on [AndroidInAppWebViewWidget], which is recreated on
+  // every rebuild of the parent [InAppWebView] while this state is not.
+  AndroidInAppWebViewController? _controller;
+  bool _tickerModeEnabled = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final tickerModeEnabled = TickerMode.of(context);
+    if (tickerModeEnabled != _tickerModeEnabled) {
+      _tickerModeEnabled = tickerModeEnabled;
+      _sync();
+    }
+  }
+
+  void _onControllerCreated(AndroidInAppWebViewController controller) {
+    _controller = controller;
+    // Always sync: a keep-alive WebView may come back hidden from a previous
+    // widget.
+    _sync();
+  }
+
+  void _sync() {
+    if (widget.useHybridComposition) {
+      return;
+    }
+    _controller?.setTickerModeEnabled(_tickerModeEnabled);
+  }
+
+  @override
+  void dispose() {
+    _controller = null;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      widget.builder(context, _onControllerCreated);
 }

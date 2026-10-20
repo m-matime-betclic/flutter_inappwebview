@@ -339,13 +339,20 @@ public class WebViewChannelDelegate extends ChannelDelegateImpl {
         break;
       case pause:
         if (webView != null) {
-          webView.onPause();
+          webView.pauseByUser();
         }
         result.success(true);
         break;
       case resume:
         if (webView != null) {
-          webView.onResume();
+          webView.resumeByUser();
+        }
+        result.success(true);
+        break;
+      case setTickerModeEnabled:
+        if (webView != null) {
+          Boolean enabled = (Boolean) call.argument("enabled");
+          webView.setTickerModeEnabled(enabled == null || enabled);
         }
         result.success(true);
         break;

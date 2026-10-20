@@ -142,6 +142,8 @@ final public class InAppWebView extends InputAwareWebView implements InAppWebVie
   public InAppWebViewSettings customSettings = new InAppWebViewSettings();
   public boolean isLoading = false;
   private boolean inFullscreen = false;
+  private boolean isPausedByUser = false;
+  private boolean isTickerModeEnabled = true;
   public float zoomScale = 1.0f;
   public ContentBlockerHandler contentBlockerHandler = new ContentBlockerHandler();
   @Nullable
@@ -2011,6 +2013,43 @@ final public class InAppWebView extends InputAwareWebView implements InAppWebVie
   @Override
   public void postWebMessage(com.pichillilorenzo.flutter_inappwebview_android.types.WebMessage message, Uri targetOrigin, ValueCallback<String> callback) throws Exception {
     throw new UnsupportedOperationException();
+  }
+
+  public void pauseByUser() {
+    isPausedByUser = true;
+    onPause();
+  }
+
+  public void resumeByUser() {
+    isPausedByUser = false;
+    if (isTickerModeEnabled) {
+      onResume();
+    }
+  }
+
+  /**
+   * Mirrors Flutter's TickerMode. Without hybrid composition the WebView draws into a
+   * Flutter-owned texture that keeps being fed even when Flutter no longer shows it, and
+   * that texture can be released under memory pressure while the WebView is still drawing.
+   */
+  public void setTickerModeEnabled(boolean enabled) {
+    if (customSettings.useHybridComposition || isTickerModeEnabled == enabled) {
+      return;
+    }
+    isTickerModeEnabled = enabled;
+    // Hiding is what stops the drawing; pausing would also stop background audio.
+    boolean shouldPause = !customSettings.allowBackgroundAudioPlaying;
+    if (enabled) {
+      setVisibility(View.VISIBLE);
+      if (shouldPause && !isPausedByUser) {
+        onResume();
+      }
+    } else {
+      if (shouldPause) {
+        onPause();
+      }
+      setVisibility(View.INVISIBLE);
+    }
   }
 
   @Override
