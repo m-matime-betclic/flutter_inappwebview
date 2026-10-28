@@ -661,8 +661,15 @@ public class InAppWebViewSettings implements ISettings<InAppWebViewInterface> {
       } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         realSettings.put("forceDark", settings.getForceDark());
       }
-      if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK_STRATEGY)) {
-        realSettings.put("forceDarkStrategy", WebSettingsCompat.getForceDarkStrategy(settings));
+      // Adapter-only WebSettingsCompat getters can throw a ClassCastException on Huawei/Honor
+      // devices that wrap WebSettings in android.webkit.WebSettingsWrapper.
+      // https://github.com/pichillilorenzo/flutter_inappwebview/issues/2673
+      try {
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK_STRATEGY)) {
+          realSettings.put("forceDarkStrategy", WebSettingsCompat.getForceDarkStrategy(settings));
+        }
+      } catch (Exception e) {
+        e.printStackTrace();
       }
       realSettings.put("layoutAlgorithm", settings.getLayoutAlgorithm().name());
       realSettings.put("loadWithOverviewMode", settings.getLoadWithOverviewMode());
@@ -690,14 +697,19 @@ public class InAppWebViewSettings implements ISettings<InAppWebViewInterface> {
         rendererPriorityPolicy.put("waivedWhenNotVisible", webView.getRendererPriorityWaivedWhenNotVisible());
         realSettings.put("rendererPriorityPolicy", rendererPriorityPolicy);
       }
-      if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        realSettings.put("algorithmicDarkeningAllowed", WebSettingsCompat.isAlgorithmicDarkeningAllowed(settings));
-      }
-      if (WebViewFeature.isFeatureSupported(WebViewFeature.ENTERPRISE_AUTHENTICATION_APP_LINK_POLICY)) {
-        realSettings.put("enterpriseAuthenticationAppLinkPolicyEnabled", WebSettingsCompat.getEnterpriseAuthenticationAppLinkPolicyEnabled(settings));
-      }
-      if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
-        realSettings.put("requestedWithHeaderOriginAllowList", new ArrayList<>(WebSettingsCompat.getRequestedWithHeaderOriginAllowList(settings)));
+      // see forceDarkStrategy above
+      try {
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+          realSettings.put("algorithmicDarkeningAllowed", WebSettingsCompat.isAlgorithmicDarkeningAllowed(settings));
+        }
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.ENTERPRISE_AUTHENTICATION_APP_LINK_POLICY)) {
+          realSettings.put("enterpriseAuthenticationAppLinkPolicyEnabled", WebSettingsCompat.getEnterpriseAuthenticationAppLinkPolicyEnabled(settings));
+        }
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
+          realSettings.put("requestedWithHeaderOriginAllowList", new ArrayList<>(WebSettingsCompat.getRequestedWithHeaderOriginAllowList(settings)));
+        }
+      } catch (Exception e) {
+        e.printStackTrace();
       }
     }
     return realSettings;
